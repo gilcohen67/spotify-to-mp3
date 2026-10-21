@@ -14,7 +14,8 @@ if [ ! -x .venv/bin/python ]; then
   python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt || {
     read -p "Setup failed. Press Enter to close."; exit 1; }
 fi
-# keep yt-dlp current; YouTube changes often
+# pick up any new requirements, and keep yt-dlp current (YouTube changes often)
+.venv/bin/pip install -q -r requirements.txt >/dev/null 2>&1
 .venv/bin/pip install -q -U yt-dlp >/dev/null 2>&1
 
 .venv/bin/python spotify_to_mp3.py

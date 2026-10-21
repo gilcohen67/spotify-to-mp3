@@ -1,3 +1,5 @@
 spotipy>=2.26
 yt-dlp
+yt-dlp-ejs
+deno
 imageio-ffmpeg

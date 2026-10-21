@@ -21,6 +21,7 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
   )
 )
+".venv\Scripts\python.exe" -m pip install -q -r requirements.txt >nul 2>nul
 ".venv\Scripts\python.exe" -m pip install -q -U yt-dlp >nul 2>nul
 
 ".venv\Scripts\python.exe" spotify_to_mp3.py
