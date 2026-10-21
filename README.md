@@ -75,14 +75,14 @@ YouTube hides some songs, often explicit ones, behind an age check. When that ha
 python spotify_to_mp3.py "https://open.spotify.com/playlist/XXXX" --cookies-from-browser chrome
 ```
 
-macOS may ask permission to read the browser's data. Safari may require giving Terminal "Full Disk Access".
+The script automatically uses your browser's most recently used profile. macOS may ask permission to read the browser's data (enter your Mac login password and choose *Allow*). Safari may require giving Terminal "Full Disk Access".
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
 | `INVALID_CLIENT: Invalid redirect URI` | The redirect URI in the dashboard must be exactly `http://127.0.0.1:8888/callback`. |
-| `403` or no tracks returned | Spotify limits what new developer apps can read. Make sure you're logged in as the app owner and the playlist is yours (or public/collaborative). Otherwise, copy the playlist into your own account first. |
+| `403` / "belongs to someone else" | Spotify only lets this app read playlists **you own or collaborate on**, even public ones. Copy the songs into your own playlist (open the playlist, select all songs, right-click → *Add to playlist* → *New playlist*) and use that link. |
 | YouTube errors or `Sign in to confirm you're not a bot` | Update yt-dlp: `pip install -U yt-dlp`. YouTube changes often. |
 | Wrong song or live version downloaded | The script prefers "official audio" / "HQ" uploads and skips live, cover and remix results, but matching is automatic. Delete the file and replace it manually. |
 | Mac: `Start (Mac).command` won't open ("permission denied") | ZIP downloads can drop the executable flag. Open Terminal once and run `chmod +x ` followed by dragging the file into the window, then press Enter. After that, double-click works. |

@@ -14,6 +14,7 @@ import re
 import sys
 
 import getpass
+import logging
 import shutil
 import subprocess
 import html
@@ -27,6 +28,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from yt_dlp import YoutubeDL
 
+logging.getLogger("spotipy").setLevel(logging.CRITICAL)  # we show friendlier messages ourselves
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCOPE = "playlist-read-private playlist-read-collaborative"
 
@@ -247,6 +249,32 @@ def get_tracks(sp, playlist):
     return [(artist, title, secs) for _, artist, title, secs in tracks]
 
 
+def explain_playlist_error(sp, playlist, err):
+    """Print a friendly explanation for a playlist Spotify wouldn't let us read."""
+    status = getattr(err, "http_status", None)
+    print(f"\nCouldn't read that playlist (Spotify error {status}).")
+    owner = None
+    try:
+        owner = sp.playlist(playlist, fields="owner(display_name)")["owner"]["display_name"]
+    except Exception:
+        pass
+    if status == 403:
+        who = f"someone else ({owner})" if owner else "someone else"
+        print(
+            f"\nThis playlist belongs to {who}. Spotify only lets this app read playlists you own or\n"
+            "collaborate on, even when the playlist is public.\n\n"
+            "Workaround: copy the songs into a playlist of your own, then use that link.\n"
+            "  1. Open the playlist in the Spotify app and click any song.\n"
+            "  2. Select all songs (Cmd+A on Mac, Ctrl+A on Windows).\n"
+            "  3. Right-click -> Add to playlist -> New playlist. (Songs keep their order, but all\n     get today's date, so numbering follows the playlist order instead of when each was added.)\n"
+            "  4. Share your new playlist's link and run this again."
+        )
+    elif status == 404:
+        print("\nThe playlist wasn't found. Check the link, and that the playlist isn't deleted or private.")
+    else:
+        print(f"\n{err}")
+
+
 def safe_name(s):
     return re.sub(r'[\\/:*?"<>|]', "_", s)
 
@@ -394,8 +422,54 @@ def write_report(out, rows, known):
         f.write(page)
 
 
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
 def is_age_error(e):
-    return "confirm your age" in str(e)
+    text = ANSI.sub("", str(e))
+    return "confirm your age" in text or "age-restricted" in text
+
+
+def js_runtimes():
+    """A JavaScript runtime for yt-dlp's YouTube challenge solving: deno (installed via pip) or node."""
+    path = os.path.dirname(sys.executable) + os.pathsep + os.environ.get("PATH", "")
+    for name in ("deno", "node"):
+        exe = shutil.which(name, path=path)
+        if exe:
+            return {name: {"path": exe}}
+    return {}
+
+
+def browser_profile(browser):
+    """Name of a Chromium browser's last-used profile (e.g. 'Profile 2'); yt-dlp assumes 'Default' otherwise."""
+    home = os.path.expanduser("~")
+    local = os.environ.get("LOCALAPPDATA", "")
+    dirs = {
+        "chrome": [
+            f"{home}/Library/Application Support/Google/Chrome",
+            f"{local}/Google/Chrome/User Data",
+            f"{home}/.config/google-chrome",
+        ],
+        "edge": [
+            f"{home}/Library/Application Support/Microsoft Edge",
+            f"{local}/Microsoft/Edge/User Data",
+            f"{home}/.config/microsoft-edge",
+        ],
+        "brave": [
+            f"{home}/Library/Application Support/BraveSoftware/Brave-Browser",
+            f"{local}/BraveSoftware/Brave-Browser/User Data",
+            f"{home}/.config/BraveSoftware/Brave-Browser",
+        ],
+    }.get(browser, [])
+    for d in dirs:
+        try:
+            with open(os.path.join(d, "Local State"), encoding="utf-8") as f:
+                last = json.load(f)["profile"].get("last_used")
+            if last and os.path.isdir(os.path.join(d, last)):
+                return last
+        except (OSError, ValueError, KeyError):
+            continue
+    return None
 
 
 def ask_cookie_browser():
@@ -430,9 +504,10 @@ def ask_cookie_browser():
 
 def short_error(e):
     """One readable line from a yt-dlp error."""
-    msg = re.sub(r"^ERROR:\s*(\[\w+\]\s*\S+:\s*)?", "", str(e)).strip().splitlines()[0] if str(e) else "unknown error"
-    if "confirm your age" in msg:
+    text = ANSI.sub("", str(e)).strip()
+    if is_age_error(e):
         return "age-restricted video"
+    msg = re.sub(r"^ERROR:\s*(\[\w+\]\s*\S+:\s*)?", "", text).splitlines()[0] if text else "unknown error"
     return msg[:100]
 
 
@@ -463,7 +538,11 @@ def main():
         args.out = args.out or choose_output_folder(os.path.join(HERE, "downloads"))
     redirect = os.environ.get("SPOTIPY_REDIRECT_URI", REDIRECT)
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=SCOPE, redirect_uri=redirect))
-    tracks = get_tracks(sp, playlist)
+    try:
+        tracks = get_tracks(sp, playlist)
+    except spotipy.SpotifyException as e:
+        explain_playlist_error(sp, playlist, e)
+        sys.exit(1)
     if args.limit:
         tracks = tracks[: args.limit]
     print(f"Found {len(tracks)} tracks")
@@ -478,6 +557,7 @@ def main():
         "ffmpeg_location": imageio_ffmpeg.get_ffmpeg_exe(),
         "quiet": True,
         "logger": QuietLogger(),
+        "js_runtimes": js_runtimes(),
         "noprogress": True,
         "no_warnings": True,
         "postprocessors": [
@@ -487,6 +567,7 @@ def main():
     }
     failed = []
     rows = []
+    hinted = False
     browser = args.cookies_from_browser or load_settings().get("cookies_browser")  # None = not asked yet
     json_path = os.path.join(args.out, REPORT_JSON)
     try:
@@ -532,13 +613,20 @@ def main():
                             browser = ask_cookie_browser()
                         if browser:
                             try:
-                                opts = {**ydl_opts, "outtmpl": ydl.params["outtmpl"], "cookiesfrombrowser": (browser,)}
+                                opts = {**ydl_opts, "outtmpl": ydl.params["outtmpl"], "cookiesfrombrowser": (browser, browser_profile(browser))}
                                 with YoutubeDL(opts) as signed_in:
                                     signed_in.download([cand["url"]])
                                 video = cand
                                 break
                             except Exception as e2:
                                 error = e2
+                                if is_age_error(e2) and not hinted:
+                                    hinted = True
+                                    print(
+                                        f"   Still age-restricted with your {browser} login. Make sure you're signed in to\n"
+                                        f"   YouTube in {browser} (your main profile) with an account Google has age-verified,\n"
+                                        "   then run again. Using another upload for now."
+                                    )
                     print(f"   couldn't use {cand['url']} ({short_error(error)}); trying the next one")
             if video:
                 known[name] = video
