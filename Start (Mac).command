@@ -18,5 +18,4 @@ fi
 .venv/bin/pip install -q -U yt-dlp >/dev/null 2>&1
 
 .venv/bin/python spotify_to_mp3.py
-open downloads 2>/dev/null
 read -p "Done. Press Enter to close."

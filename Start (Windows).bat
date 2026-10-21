@@ -24,6 +24,5 @@ if not exist ".venv\Scripts\python.exe" (
 ".venv\Scripts\python.exe" -m pip install -q -U yt-dlp >nul 2>nul
 
 ".venv\Scripts\python.exe" spotify_to_mp3.py
-if exist downloads start "" downloads
 echo Done.
 pause
