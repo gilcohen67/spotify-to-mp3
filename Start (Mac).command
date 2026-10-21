@@ -2,7 +2,7 @@
 # Double-click to run. First run installs what it needs (takes a minute).
 cd "$(dirname "$0")"
 
-if ! command -v python3 >/dev/null 2>&1; then
+if ! python3 -c "import venv" >/dev/null 2>&1; then
   echo "Python 3 is required. Opening the download page..."
   open "https://www.python.org/downloads/"
   read -p "Install Python, then double-click this file again. Press Enter to close."

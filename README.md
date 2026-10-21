@@ -4,12 +4,19 @@ Reads a Spotify playlist through the Spotify API, finds each song on YouTube wit
 
 ## Quick start (no terminal needed)
 
-1. Install Python 3 from https://www.python.org/downloads/ (on Windows, tick **Add python.exe to PATH**).
-2. Double-click **`Start (Mac).command`** or **`Start (Windows).bat`**.
-   - Mac: if it's blocked, right-click it → *Open* → *Open*.
-3. **First run only:** the window walks you through connecting your own Spotify account. It opens the Spotify Developer Dashboard, tells you what to click, and asks you to paste your Client ID and Client Secret. They are checked and saved to a private `.env` file in this folder.
-4. Spotify opens in your browser to log in and approve access.
-5. Paste your playlist link when asked. MP3s appear in the `downloads` folder.
+1. **Download the app from GitHub:**
+   - On this page, click the green **Code** button → **Download ZIP**.
+   - Open your Downloads folder and unzip it (double-click the ZIP). Move the unzipped folder somewhere easy, like your Desktop or Documents.
+2. **Install Python 3 (one time).** Windows and Mac don't include a usable Python, so this is needed even if you've never installed it:
+   - Download the installer from https://www.python.org/downloads/ and run it.
+   - **Windows:** on the first screen, tick **Add python.exe to PATH** before clicking Install.
+   - Already have Python 3? Skip this step. If you're not sure, just continue; the launcher will tell you if it's missing.
+3. Open the unzipped folder and double-click **`Start (Mac).command`** or **`Start (Windows).bat`**.
+   - Mac: if it's blocked, right-click it → *Open* → *Open*. If it says it can't be opened because of permissions, see Troubleshooting.
+   - Windows: if you see "Windows protected your PC", click *More info* → *Run anyway*.
+4. **First run only:** the window walks you through connecting your own Spotify account. It opens the Spotify Developer Dashboard, tells you what to click, and asks you to paste your Client ID and Client Secret. They are checked and saved to a private `.env` file in this folder.
+5. Spotify opens in your browser to log in and approve access.
+6. Paste your playlist link when asked. MP3s appear in the `downloads` folder.
 
 Everyone uses their **own** Spotify developer app, so never share your `.env` file or `.cache`.
 
@@ -55,6 +62,7 @@ python spotify_to_mp3.py "https://open.spotify.com/playlist/XXXX" -o downloads
 | `403` or no tracks returned | Spotify limits what new developer apps can read. Make sure you're logged in as the app owner and the playlist is yours (or public/collaborative). Otherwise, copy the playlist into your own account first. |
 | YouTube errors or `Sign in to confirm you're not a bot` | Update yt-dlp: `pip install -U yt-dlp`. YouTube changes often. |
 | Wrong song or live version downloaded | The script takes the first YouTube search result. Delete the file and replace it manually. |
+| Mac: `Start (Mac).command` won't open ("permission denied") | ZIP downloads can drop the executable flag. Open Terminal once and run `chmod +x ` followed by dragging the file into the window, then press Enter. After that, double-click works. |
 | Stale or wrong Spotify login | Delete the `.cache` file and run again. |
 
 ## Limitations
